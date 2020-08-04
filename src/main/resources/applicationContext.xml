@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:mybatis-spring="http://mybatis.org/schema/mybatis-spring"
+       xmlns:tx="http://www.springframework.org/schema/tx" xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:util="http://www.springframework.org/schema/util"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd
+        http://mybatis.org/schema/mybatis-spring
+        http://mybatis.org/schema/mybatis-spring.xsd
+        http://www.springframework.org/schema/cache
+        http://www.springframework.org/schema/cache/spring-cache.xsd
+        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd http://www.springframework.org/schema/aop https://www.springframework.org/schema/aop/spring-aop.xsd http://www.springframework.org/schema/util https://www.springframework.org/schema/util/spring-util.xsd">
+
+    <context:component-scan base-package="com.reignzzz.shirocas.service" />
+
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+
+    <bean class="com.mchange.v2.c3p0.ComboPooledDataSource" id="dataSource">
+        <property name="driverClass" value="${jdbc.driver}"/>
+        <property name="jdbcUrl" value="${jdbc.url}"/>
+        <property name="user" value="${jdbc.user}"/>
+        <property name="password" value="${jdbc.password}"/>
+    </bean>
+
+    <bean class="org.mybatis.spring.SqlSessionFactoryBean" id="sqlSessionFactory">
+        <property name="dataSource" ref="dataSource"/>
+        <property name="configLocation" value="classpath:mybatis.xml"/>
+    </bean>
+
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer" id="configurer">
+        <property name="basePackage" value="com.reignzzz.shirocas.dao"/>
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+    </bean>
+
+    <bean class="org.apache.shiro.web.mgt.DefaultWebSecurityManager" id="securityManager">
+        <property name="realm" ref="casRealm"/>
+        <property name="cacheManager" ref="cacheManager"/>
+        <property name="subjectFactory" ref="casSubjectFactory"/>
+    </bean>
+
+    <bean id="casRealm" class="com.reignzzz.shirocas.shiro.CustomCasRealm">
+        <property name="casServerUrlPrefix" value="http://sso.itcast.cn:8080/cas"/>
+        <property name="casService" value="http://shirocasB.itcast.cn:9002/shiro-cas"/>
+        <property name="credentialsMatcher">
+            <bean class="com.reignzzz.shirocas.shiro.CustomCredentialsMatcher"/>
+        </property>
+    </bean>
+
+    <bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+        <property name="cacheManagerConfigFile" value="classpath:ehcache.xml" />
+    </bean>
+
+    <bean id="casSubjectFactory" class="org.apache.shiro.cas.CasSubjectFactory"/>
+
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+        <property name="securityManager" ref="securityManager"/>
+        <property name="loginUrl" value="http://sso.itcast.cn:8080/cas/login?service=http://shirocasB.itcast.cn:9002/shiro-cas"/>
+        <property name="successUrl" value="/view/index.jsp"/>
+        <property name="unauthorizedUrl" value="/view/error.jsp"/>
+        <property name="filters">
+            <util:map>
+                <entry key="casFilter" value-ref="casFilter"/>
+                <entry key="logout" value-ref="logout"/>
+            </util:map>
+        </property>
+        <property name="filterChainDefinitionMap" ref="filterChainDefinitionMap" />
+    </bean>
+    <bean id="filterChainDefinitionMap" factory-bean="filterChainDefinitionMapFactory" factory-method="getFilterChainDefinitionMap"/>
+    <bean id="filterChainDefinitionMapFactory" class="com.reignzzz.shirocas.shiro.FilterChainDefinitionMapFactory"/>
+
+    <bean id="casFilter" class="org.apache.shiro.cas.CasFilter">
+        <property name="failureUrl" value="http://sso.itcast.cn:8080/cas/login?service=http://shirocasB.itcast.cn:9002/error.jsp"/>
+    </bean>
+
+    <bean id="logout" class="org.apache.shiro.web.filter.authc.LogoutFilter">
+        <property name="redirectUrl" value="http://sso.itcast.cn:8080/cas/logout?service=http://shirocasB.itcast.cn:9002/shiro-cas"/>
+    </bean>
+
+</beans>
